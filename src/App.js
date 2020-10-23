@@ -3,11 +3,14 @@ import Navigation from './components/Navigation'
 import Field from './components/Field'
 import Button from './components/Button'
 import ManipulationPanel from './components/ManipulationPanel'
-import { initFields } from './utils'
+import { initFields, getFoodPostion } from './utils'
 
 const initialPosition = { x: 17, y: 17 }
 const initialValues = initFields(35, initialPosition)
 const defaultInterval = 100
+const defaultDifficulty = 3
+
+const Difficulty = [1000, 500, 100, 50, 10]
 
 const GameStatus = Object.freeze({
   init: 'init',
@@ -65,24 +68,31 @@ const isCollision = (fieldSize, position) => {
   return false;
 };
 
+const isEatingMyself = (fields, position) => {
+  return fields[position.y][position.x] === 'snake'
+}
+
 function App() {
   const [fields, setFields] = useState(initialValues)
-  const [position, setPosition] = useState()
+  const [body, setBody] = useState([])
   const [status, setStatus] = useState(GameStatus.init)
   const [direction, setDirection] = useState(Direction.up)
+  const [difficulty, setDifficulty] = useState(defaultDifficulty)
   const [tick, setTick] = useState(0)
 
   useEffect(() => {
-    setPosition(initialPosition)
+    setBody([initialPosition])
+
     // ゲームの中の時間を管理する
+    const interval = Difficulty[difficulty-1]
     timer = setInterval(() => {
       setTick(tick => tick + 1)
-    }, defaultInterval)
+    }, interval)
     return unsubscribe
-  }, [])
+  }, [difficulty])
 
   useEffect(() => {
-    if (!position || status !== GameStatus.playing) {
+    if (body.length === 0 || status !== GameStatus.playing) {
       return
     }
     const canContinue = handleMoving()
@@ -93,12 +103,14 @@ function App() {
 
   const onStart = () => setStatus(GameStatus.playing)
 
+  const onStop = () => setStatus(GameStatus.suspended)
+
   const onRestart = () => {
     timer = setInterval(() => {
       setTick(tick => tick + 1)
     })
     setStatus(GameStatus.init)
-    setPosition(initialPosition)
+    setBody([initialPosition])
     setDirection(Direction.up)
     setFields(initFields(35, initialPosition))
   }
@@ -112,6 +124,16 @@ function App() {
     }
     setDirection(newDirection)
   }, [direction ,status])
+
+  const onChangeDifficulty = useCallback((difficulty) => {
+    if (status !== GameStatus.init) {
+      return
+    }
+    if (difficulty < 1 || difficulty > Difficulty.length) {
+      return
+    }
+    setDifficulty(difficulty)
+  }, [status, difficulty])
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -127,19 +149,28 @@ function App() {
   }, [onChangeDirection])
 
   const handleMoving = () => {
-    const { x, y } = position
+    const { x, y } = body[0]
     const delta = Delta[direction]
     const newPosition = {
       x: x + delta.x,
       y: y + delta.y
     }
-    if (isCollision(fields.length, newPosition)) {
+    if (isCollision(fields.length, newPosition) || isEatingMyself(fields, newPosition)) {
       unsubscribe()
       return false
     }
-    fields[y][x] = ''
+    const newBody = [...body]
+    if (fields[newPosition.y][newPosition.x] !== 'food') {
+      const removingTrack = newBody.pop()
+      fields[removingTrack.y][removingTrack.x] = ''
+    } else {
+      const food = getFoodPostion(fields.length, [...newBody, newPosition])
+      fields[food.y][food.x] = 'food'
+    }
     fields[newPosition.y][newPosition.x] = 'snake'
-    setPosition(newPosition)
+    newBody.unshift(newPosition)
+
+    setBody(newBody)
     setFields(fields)
     return true
   }
@@ -150,13 +181,22 @@ function App() {
         <div className="title-container">
           <h1 className="title">Snake Game</h1>
         </div>
-        <Navigation />
+        <Navigation
+          length={body.length}
+          difficulty={difficulty}
+          onChangeDifficulty={onChangeDifficulty}
+        />
       </header>
       <main className="main">
         <Field fields={fields} />
       </main>
       <footer className="footer">
-        <Button status={status} onStart={onStart} onRestart={onRestart}/>
+        <Button
+          status={status}
+          onStop={onStop}
+          onStart={onStart}
+          onRestart={onRestart}
+        />
         <ManipulationPanel onChange={onChangeDirection} />
       </footer>
     </div>

@@ -1,7 +1,37 @@
 import React from 'react';
 
-const Navigation = () => {
-  return <p>navigation</p>;
+const Navigation = ({ length, difficulty = 3, onChangeDifficulty }) => {
+  const upVisiblity = difficulty < 5 ? '' : 'is-hidden'
+  const downVisibilty = difficulty > 1 ? '' : 'is-hidden'
+  const onUpDifficulty = () => onChangeDifficulty(difficulty + 1)
+  const onDownDifficulty = () => onChangeDifficulty(difficulty -1)
+
+  return (
+    <div className="navigation">
+      <div className="navigation-item">
+          <span className="navigation-label">Length: </span>
+          <div className="navigation-item-number-container">
+            <div className="num-board">{length}</div>
+          </div>
+      </div>
+      <div className="navigation-item">
+        <span className="navigation-label">Difficulty: </span>
+        <div className="navigation-item-number-container">
+          <span className="num-board">{difficulty}</span>
+          <div className="difficulty-button-container">
+            <div
+              className={`difficulty-button difficulty-up ${upVisiblity}`}
+              onClick={onUpDifficulty}
+            ></div>
+            <div
+              className={`difficulty-button difficulty-down ${downVisibilty}`}
+              onClick={onDownDifficulty}
+            ></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 };
 
 export default Navigation;
